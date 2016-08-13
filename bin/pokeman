@@ -1,0 +1,53 @@
+#!/usr/bin/env ruby
+# coding: utf-8
+require 'rubygems'
+require 'awesome_print'
+require 'colorize'
+require 'rest_client'
+require 'json'
+require 'prompt'
+
+class Pokeapi 
+
+   attr_accessor :commands, :url, :history_file
+
+   def initialize(options = {})
+    @url = 'http://pokeapi.co/api/v2/'
+    headers   = {'Content-Type' => 'text/plain'}
+    resource  = RestClient::Resource.new( @url,
+                                          :headers      => headers
+                                        )
+    response  = resource.get
+    result    = JSON.parse(response, :symbolize_names => true)
+    @commands = result
+    console_start
+  end
+
+
+  def console_start
+    extend Prompt::DSL
+
+    group "Pokeman console commands"
+
+    desc "List all pokemon/v2 api commands."
+    command "list" do | |
+      printf "%25s        %s\n","Command", "Url"
+      self.commands.sort.each do |command, desc|
+        printf "%25s        %s\n", command.to_s, desc.to_s.light_yellow
+      end
+    end
+
+    desc "Show all information about command."
+    command "show :command" do |command|
+      ap command
+    end
+
+    Prompt.application.prompt = "v2/pokeman > ".light_blue
+    @history_file = File.join(File.expand_path(File.dirname(__FILE__)).to_s, ".pokeman-history")
+    Prompt::Console.start @history_file
+
+  end
+
+end
+
+poke = Pokeapi.new
