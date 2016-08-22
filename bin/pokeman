@@ -6,43 +6,107 @@ require 'colorize'
 require 'rest_client'
 require 'json'
 require 'prompt'
+require 'poke-api'
+require 'capybara'
+require 'capybara/dsl'
+require 'capybara/poltergeist'
+require 'pokeman'
+require 'tty-prompt'
 
-class Pokeapi 
 
-   attr_accessor :commands, :url, :history_file
+class PokeMan_exec 
 
-   def initialize(options = {})
-    @url = 'http://pokeapi.co/api/v2/'
-    headers   = {'Content-Type' => 'text/plain'}
-    resource  = RestClient::Resource.new( @url,
-                                          :headers      => headers
-                                        )
-    response  = resource.get
-    result    = JSON.parse(response, :symbolize_names => true)
-    @commands = result
+  attr_accessor :history_file, :config, :config , :players, :current_player, :current_place 
+
+  def initialize(options = {})
+    PokeUtil.new
+    @current_player = 'NoUser'
+    @current_place  = 'NoPlace'
+    PokeUtil.read_config
     console_start
   end
-
 
   def console_start
     extend Prompt::DSL
 
     group "Pokeman console commands"
 
-    desc "List all pokemon/v2 api commands."
-    command "list" do | |
-      printf "%25s        %s\n","Command", "Url"
-      self.commands.sort.each do |command, desc|
-        printf "%25s        %s\n", command.to_s, desc.to_s.light_yellow
+    desc "Logon to valid players are: [#{ (PokeUtil.get_variable 'players').join(' ')}]." 
+    command "logon :param" do |param|
+      player  = param.split('/')
+      players = PokeUtil.get_variable 'players'
+      places  = PokeUtil.get_variable 'places'
+      place   = PokeUtil.get_variable 'place'
+      config  = PokeUtil.get_variable 'config'
+      if player.size == 1
+        current_place = place
+      else
+        current_place = player.last
+      end
+      unless places.include? current_place
+        PokeUtil.place_error current_place, places
+        status = false
+      else
+        status = true
+      end
+      unless players.include? player.first
+        PokeUtil.player_error player.first, players
+        status = false
+      else
+        current_player = player.first
+        status = true
+      end
+      if status
+        PokeUtil.login current_player, current_place
+        Prompt.application.prompt = "pokeman #{current_player}/#{current_place}> ".light_green
       end
     end
 
-    desc "Show all information about command."
-    command "show :command" do |command|
-      ap command
+
+
+
+
+    desc "Show all information about [player|pokes]."
+    command "show" do ||
+      prompt = TTY::Prompt.new
+      option = %w(player pokemons items pokedex candys stats)
+      choice = prompt.select('Choose?', option)
+      case choice
+      when 'player'
+        player = PokeUtil.get_variable 'player'
+        ap player
+      when 'pokemons'
+        pokemons = PokeUtil.get_variable 'pokemons'
+        ap pokemons
+      when 'items'
+        items = PokeUtil.get_variable 'items'
+        ap items
+      when 'pokedex'
+        pokedex = PokeUtil.get_variable 'pokedex'
+        ap pokedex
+      when 'candys'
+        candys = PokeUtil.get_variable 'candys'
+        ap candys
+      when 'stats'
+        PokeUtil.show_stats
+      end
     end
 
-    Prompt.application.prompt = "v2/pokeman > ".light_blue
+    desc "Show and analize config data."
+    command "config" do ||
+      ap config 
+    end
+
+    desc "history"
+    command "history" do
+      File.open(@history_file, 'r') do |f|
+        while line = f.gets
+          puts line
+        end
+      end
+    end
+
+    Prompt.application.prompt = "pokeman #{current_player}/#{current_place}> ".light_red
     @history_file = File.join(File.expand_path(File.dirname(__FILE__)).to_s, ".pokeman-history")
     Prompt::Console.start @history_file
 
@@ -50,4 +114,4 @@ class Pokeapi
 
 end
 
-poke = Pokeapi.new
+poke = PokeMan_exec.new

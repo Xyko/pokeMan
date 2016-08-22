@@ -1,4 +1,4 @@
 source 'https://rubygems.org'
 
-# Specify your gem's dependencies in pokeMan.gemspec
+# Specify your gem's dependencies in pokeman.gemspec
 gemspec
