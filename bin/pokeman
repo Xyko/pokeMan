@@ -12,7 +12,7 @@ require 'capybara/dsl'
 require 'capybara/poltergeist'
 require 'pokeman'
 require 'tty-prompt'
-
+require 'tty'
 
 class PokeMan_exec 
 
@@ -69,7 +69,7 @@ class PokeMan_exec
     desc "Show all information about [player|pokes]."
     command "show" do ||
       prompt = TTY::Prompt.new
-      option = %w(player pokemons items pokedex candys stats)
+      option = %w(player pokemons items pokedex candys stats stats2 stats3)
       choice = prompt.select('Choose?', option)
       case choice
       when 'player'
@@ -89,6 +89,10 @@ class PokeMan_exec
         ap candys
       when 'stats'
         PokeUtil.show_stats
+      when 'stats2'
+        PokeUtil.show_stats2
+      when 'stats3'
+        PokeUtil.show_stats3
       end
     end
 

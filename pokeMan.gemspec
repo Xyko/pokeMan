@@ -28,7 +28,8 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'i18n', '~> 0.7', '>= 0.7.0'
   spec.add_runtime_dependency 'rest-client', '~> 1.8', '>= 1.8.0'
   spec.add_runtime_dependency 'poke-go-api', '~> 0.1', '>= 0.1.7'
-  spec.add_runtime_dependency 'tty-prompt', '~> 0.7', '>= 0.7.1'
+  spec.add_runtime_dependency 'tty-prompt'
+  spec.add_runtime_dependency 'tty'
   spec.add_runtime_dependency 'capybara', '~> 2.8', '>= 2.8.0'
   spec.add_runtime_dependency 'poltergeist', '~> 1.10', '>= 1.10.0'
 

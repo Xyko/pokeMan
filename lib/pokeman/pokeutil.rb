@@ -17,22 +17,37 @@ class PokeUtil
     exit
   end
 
+  def self.encrypt_library_error
+    printf "\tUnknow library key on your config file. Aborting...\n".light_yellow
+    exit
+  end
+
+  def self.verify_library library
+    ap library
+    host_os = RbConfig::CONFIG['host_os']
+    ap host_os
+  end
 
   def self.read_config 
-    local = ENV['PWD']
-    file = open(local+'/pokeman.config')
+
+    #local = ENV['PWD']
+    file = open(PokeMan.configuration.pwd+'/pokeman.config')
     json = file.read
     parsed = JSON.parse(json)
     config  = parsed
     players = config.keys
     players.delete('places')
     players.delete('library')
-    set_variable 'config', config
-    set_variable 'players', players
-    set_variable 'place', config['places']['default']
+    PokeUtil.set_variable 'config', config
+    PokeUtil.set_variable 'players', players
+    PokeUtil.set_variable 'place', config['places']['default']
     places = config['places'].keys
     places.delete('default')
     set_variable 'places', places 
+    levels = YAML.load(File.read(PokeMan.files + '/levels.yml'))
+    evolutions = YAML.load(File.read(PokeMan.files + '/evolutions.yml'))
+    PokeUtil.set_variable 'levels', levels
+    PokeUtil.set_variable 'evolutions', evolutions
   end
 
   def self.login login, place
@@ -59,7 +74,13 @@ class PokeUtil
     user            = config[login]['user']
     password        = config[login]['password']
     account_type    = config[login]['account_type']
-    encrypt_library = config['library']
+
+    unless config['library'].nil?
+      encrypt_library = config['library']
+      verify_library encrypt_library
+    else
+      encrypt_library_error
+    end
 
     # Activate the encryption method to generate a signature (only required for map objects)
     client.activate_signature(encrypt_library)
@@ -112,8 +133,9 @@ class PokeUtil
 
         unless item[:inventory_item_data][:pokemon_data].nil?
 
-          p = item[:inventory_item_data][:pokemon_data]
-
+          p        = item[:inventory_item_data][:pokemon_data]
+          level    = get_level  p[:cp_multiplier], p[:num_upgrades] 
+          stardust = get_stardust level
           pokemons[p[:id]] = {
             :name               => p[:pokemon_id],
             :cp                 => p[:cp],
@@ -134,6 +156,8 @@ class PokeUtil
             :special_attack     => 0,
             :special_defense    => 0,
             :speed              => 0,
+            :level              => level,
+            :stardust           => stardust,
           }
 
         unless p[:pokemon_id].eql? :MISSINGNO
@@ -255,7 +279,79 @@ class PokeUtil
   end
 
 
-  def self.stardust_level  pokemon_level
+  def self.show_stats2
+    player   = PokeUtil.get_variable 'player'
+    pokemons = PokeUtil.get_variable 'pokemons'
+    paux = pokemons.sort_by{|k,v| v[:name]}
+    puts
+    printf " %15s", "Name"
+    printf " %5s", "cp"
+    printf " %5s", "sta"
+    printf " %5s", "mst"
+    printf " %5s", "upg"
+    printf " %5s", "iatk"
+    printf " %5s", "idef"
+    printf " %5s", "ista"
+    printf " %20s", "m1"
+    printf " %20s", "m2"
+    printf " %s",  "totcpx"
+    puts
+    paux.each do |k,p|
+      unless p[:name].eql? :MISSINGNO
+        totalcpx = p[:cp_multiplier] + p[:additional_cp_multiplier]
+
+        printf " %15s", p[:name]
+        printf " %5d",  p[:cp]
+        printf " %5d",  p[:stamina]
+        printf " %5d",  p[:stamina_max]
+        printf " %5d",  p[:num_upgrades]
+        printf " %5d",  p[:individual_attack]
+        printf " %5d",  p[:individual_defense]
+        printf " %5d",  p[:individual_stamina]
+        printf " %20s", p[:move_1]
+        printf " %20s", p[:move_2]
+        printf " %f",   totalcpx
+        puts
+      end
+    end
+  end
+
+  def self.show_stats3
+    player   = PokeUtil.get_variable 'player'
+    pokemons = PokeUtil.get_variable 'pokemons'
+    paux = pokemons.sort_by{|k,v| v[:name]}
+    data = []
+    paux.each do |k,p|
+      unless p[:name].eql? :MISSINGNO
+        totalcpx = p[:cp_multiplier] + p[:additional_cp_multiplier]
+        aux = []
+        aux << p[:name]
+        aux << p[:cp]
+        aux << p[:stamina]
+        aux << p[:stamina_max]
+        aux << p[:num_upgrades]
+        aux << p[:individual_attack]
+        aux << p[:individual_defense]
+        aux << p[:individual_stamina]
+        aux << p[:move_1]
+        aux << p[:move_2]
+        aux << totalcpx
+        data << aux
+      end
+    end
+    puts
+    table = TTY::Table.new ["Name","cp","sta","mst","upg","iatk","idef","ista","m1","m2","totcpx"], data
+    puts table.render(:ascii)
+
+  end
+
+  def self.get_level  multiplier, upgrades
+    levels = PokeUtil.get_variable 'levels'
+    level  = levels.find_index(multiplier.round(8)) + upgrades * 0.5
+    return level
+  end
+
+  def self.get_stardust  pokemon_level
     case pokemon_level
     when 0..2.999
       stardust = 200
